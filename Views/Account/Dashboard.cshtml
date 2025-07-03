@@ -1,0 +1,218 @@
+@model FitnessApp.Models.ViewModels.AccountViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="container-fluid py-4">
+    <!-- Welcome Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card dashboard-card">
+                <div class="card-body text-center">
+                    <h1 class="display-6 text-primary">
+                        <i class="bi bi-heart-pulse"></i> 
+                        Welcome back, @Model.User.FirstName!
+                    </h1>
+                    <p class="lead text-muted">
+                        Let's track your fitness journey for @DateTime.Today.ToString("MMMM dd, yyyy")
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card dashboard-card stat-card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-fire display-4"></i>
+                    <h3 class="mt-2">@Model.Stats.TotalCaloriesConsumed.ToString("N0")</h3>
+                    <p class="mb-0">Calories Consumed</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card dashboard-card fitness-card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-activity display-4"></i>
+                    <h3 class="mt-2">@Model.Stats.TotalCaloriesBurned.ToString("N0")</h3>
+                    <p class="mb-0">Calories Burned</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card dashboard-card diet-card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-calculator display-4"></i>
+                    <h3 class="mt-2">@Model.Stats.NetCalories.ToString("N0")</h3>
+                    <p class="mb-0">Net Calories</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card dashboard-card stat-card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-trophy display-4"></i>
+                    <h3 class="mt-2">@Model.Stats.WorkoutCompletionRate.ToString("N0")%</h3>
+                    <p class="mb-0">Workout Progress</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Today's Fitness Plans -->
+        <div class="col-lg-6 mb-4">
+            <div class="card dashboard-card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-activity"></i> Today's Fitness Plan
+                    </h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.TodayFitnessPlans.Any())
+                    {
+                        @foreach (var plan in Model.TodayFitnessPlans)
+                        {
+                            <div class="row align-items-center mb-3 p-2 border rounded @(plan.IsCompleted ? "completed bg-light" : "")">
+                                <div class="col-md-8">
+                                    <h6 class="mb-1 @(plan.IsCompleted ? "text-muted" : "text-primary")">
+                                        @plan.PlanName
+                                    </h6>
+                                    <small class="text-muted">
+                                        <i class="bi bi-clock"></i> @plan.DurationMinutes min |
+                                        <i class="bi bi-fire"></i> @plan.CaloriesBurned cal |
+                                        <i class="bi bi-award"></i> @plan.ExerciseType
+                                    </small>
+                                    @if (!string.IsNullOrEmpty(plan.Notes))
+                                    {
+                                        <p class="small text-muted mt-1 mb-0">@plan.Notes</p>
+                                    }
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <form asp-action="MarkWorkoutCompleted" method="post" class="d-inline">
+                                        <input type="hidden" name="planId" value="@plan.PlanId" />
+                                        <button type="submit" class="btn @(plan.IsCompleted ? "btn-outline-success" : "btn-success") btn-sm">
+                                            <i class="bi @(plan.IsCompleted ? "bi-check-circle-fill" : "bi-circle")"></i>
+                                            @(plan.IsCompleted ? "Completed" : "Mark Done")
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-calendar-x display-4"></i>
+                            <p class="mt-2">No fitness plans for today</p>
+                            <small>Create a plan to get started!</small>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Today's Diet Plans -->
+        <div class="col-lg-6 mb-4">
+            <div class="card dashboard-card h-100">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-journal-text"></i> Today's Diet Plan
+                    </h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.TodayDietPlans.Any())
+                    {
+                        @{
+                            var groupedMeals = Model.TodayDietPlans.GroupBy(d => d.MealType).OrderBy(g => g.Key);
+                        }
+                        @foreach (var mealGroup in groupedMeals)
+                        {
+                            <div class="mb-3">
+                                <h6 class="text-info border-bottom pb-1">
+                                    <i class="bi bi-egg-fried"></i> @mealGroup.Key
+                                </h6>
+                                @foreach (var meal in mealGroup)
+                                {
+                                    <div class="row align-items-center mb-2 p-2 border rounded @(meal.IsConsumed ? "completed bg-light" : "")">
+                                        <div class="col-md-8">
+                                            <div class="@(meal.IsConsumed ? "text-muted" : "text-dark")">
+                                                <strong>@meal.FoodItem</strong>
+                                                <span class="text-muted">(@meal.Quantity)</span>
+                                            </div>
+                                            <small class="text-muted">
+                                                <i class="bi bi-fire"></i> @meal.Calories cal |
+                                                <i class="bi bi-droplet"></i> @meal.ProteinG.ToString("N1")g protein
+                                            </small>
+                                        </div>
+                                        <div class="col-md-4 text-end">
+                                            <form asp-action="MarkMealConsumed" method="post" class="d-inline">
+                                                <input type="hidden" name="dietId" value="@meal.DietId" />
+                                                <button type="submit" class="btn @(meal.IsConsumed ? "btn-outline-info" : "btn-info") btn-sm">
+                                                    <i class="bi @(meal.IsConsumed ? "bi-check-circle-fill" : "bi-circle")"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-journal-x display-4"></i>
+                            <p class="mt-2">No diet plans for today</p>
+                            <small>Plan your meals to stay on track!</small>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card dashboard-card">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-lightning"></i> Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3 mb-2">
+                            <a href="@Url.Action("FitnessHistory")" class="btn btn-outline-primary w-100">
+                                <i class="bi bi-activity"></i><br>
+                                <small>Fitness History</small>
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="@Url.Action("DietHistory")" class="btn btn-outline-info w-100">
+                                <i class="bi bi-journal-text"></i><br>
+                                <small>Diet History</small>
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="@Url.Action("Profile")" class="btn btn-outline-success w-100">
+                                <i class="bi bi-person"></i><br>
+                                <small>My Profile</small>
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <form asp-controller="Auth" asp-action="Logout" method="post" class="d-inline w-100">
+                                <button type="submit" class="btn btn-outline-danger w-100">
+                                    <i class="bi bi-box-arrow-right"></i><br>
+                                    <small>Logout</small>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

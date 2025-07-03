@@ -1,0 +1,119 @@
+@model FitnessApp.Models.ViewModels.OtpViewModel
+@{
+    ViewData["Title"] = "Verify OTP";
+    Layout = "_Layout";
+}
+
+<div class="login-container d-flex align-items-center justify-content-center">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-4">
+                <div class="card login-card">
+                    <div class="card-header bg-success text-white text-center">
+                        <h3><i class="bi bi-shield-check"></i> OTP Verification</h3>
+                        <p class="mb-0">Enter the verification code</p>
+                    </div>
+                    <div class="card-body p-4">
+                        @if (TempData["OtpCode"] != null)
+                        {
+                            <div class="alert alert-info text-center">
+                                <i class="bi bi-info-circle"></i>
+                                <strong>Demo OTP:</strong> @TempData["OtpCode"]
+                                <br><small>In production, this would be sent to your phone/email</small>
+                            </div>
+                        }
+                        
+                        <form asp-action="VerifyOtp" method="post">
+                            <input asp-for="Username" type="hidden" />
+                            <input asp-for="RememberMe" type="hidden" />
+                            
+                            <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+                            
+                            <div class="text-center mb-3">
+                                <p class="text-muted">
+                                    <i class="bi bi-person-circle"></i> Welcome, <strong>@Model.Username</strong>
+                                </p>
+                                <p class="small text-muted">
+                                    We've sent a 6-digit verification code. Please enter it below.
+                                </p>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label asp-for="OtpCode" class="form-label text-center d-block">
+                                    <i class="bi bi-key"></i> Verification Code
+                                </label>
+                                <input asp-for="OtpCode" class="form-control text-center fs-4" 
+                                       style="letter-spacing: 0.5em;" 
+                                       placeholder="000000" 
+                                       maxlength="6" 
+                                       autocomplete="off" />
+                                <span asp-validation-for="OtpCode" class="text-danger"></span>
+                            </div>
+                            
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-success btn-lg">
+                                    <i class="bi bi-check-circle"></i> Verify & Continue
+                                </button>
+                                <a href="@Url.Action("Login")" class="btn btn-outline-secondary">
+                                    <i class="bi bi-arrow-left"></i> Back to Login
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="card-footer text-center">
+                        <div class="countdown-timer">
+                            <small class="text-muted">
+                                <i class="bi bi-clock"></i> OTP expires in: <span id="countdown">5:00</span>
+                            </small>
+                        </div>
+                        <div class="mt-2">
+                            <button class="btn btn-link btn-sm" onclick="resendOtp()" id="resendBtn" disabled>
+                                <i class="bi bi-arrow-clockwise"></i> Resend OTP
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        // OTP input formatting
+        document.getElementById('OtpCode').addEventListener('input', function(e) {
+            e.target.value = e.target.value.replace(/[^0-9]/g, '');
+        });
+
+        // Countdown timer
+        let timeLeft = 5 * 60; // 5 minutes in seconds
+        const countdownElement = document.getElementById('countdown');
+        const resendBtn = document.getElementById('resendBtn');
+
+        const timer = setInterval(function() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            
+            countdownElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            
+            if (timeLeft <= 0) {
+                clearInterval(timer);
+                countdownElement.textContent = 'Expired';
+                resendBtn.disabled = false;
+                resendBtn.classList.remove('btn-link');
+                resendBtn.classList.add('btn-primary');
+            }
+            
+            timeLeft--;
+        }, 1000);
+
+        function resendOtp() {
+            // In a real application, this would make an AJAX call to resend OTP
+            alert('OTP resend functionality would be implemented here.');
+        }
+
+        // Auto-focus on OTP input
+        document.getElementById('OtpCode').focus();
+    </script>
+}
