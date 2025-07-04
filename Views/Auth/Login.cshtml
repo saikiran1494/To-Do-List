@@ -1,0 +1,76 @@
+@model FitnessApp.Models.ViewModels.LoginViewModel
+@{
+    ViewData["Title"] = "Login";
+    Layout = "_Layout";
+}
+
+<div class="login-container d-flex align-items-center justify-content-center">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-4">
+                <div class="card login-card">
+                    <div class="card-header bg-primary text-white text-center">
+                        <h3><i class="bi bi-heart-pulse"></i> Fitness Tracker</h3>
+                        <p class="mb-0">Sign in to your account</p>
+                    </div>
+                    <div class="card-body p-4">
+                        <form asp-action="Login" method="post">
+                            <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+                            
+                            <div class="mb-3">
+                                <label asp-for="Username" class="form-label">
+                                    <i class="bi bi-person"></i> Username
+                                </label>
+                                <input asp-for="Username" class="form-control" placeholder="Enter your username" />
+                                <span asp-validation-for="Username" class="text-danger"></span>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label asp-for="Password" class="form-label">
+                                    <i class="bi bi-lock"></i> Password
+                                </label>
+                                <input asp-for="Password" class="form-control" placeholder="Enter your password" />
+                                <span asp-validation-for="Password" class="text-danger"></span>
+                            </div>
+                            
+                            <div class="mb-3 form-check">
+                                <input asp-for="RememberMe" class="form-check-input" />
+                                <label asp-for="RememberMe" class="form-check-label">
+                                    Remember me
+                                </label>
+                            </div>
+                            
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="bi bi-box-arrow-in-right"></i> Sign In
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="card-footer text-center text-muted">
+                        <small>
+                            <i class="bi bi-shield-check"></i> Your data is secure with us
+                        </small>
+                    </div>
+                </div>
+                
+                <!-- Demo Credentials Info -->
+                <div class="card mt-3 bg-light">
+                    <div class="card-body">
+                        <h6 class="card-title text-primary">
+                            <i class="bi bi-info-circle"></i> Demo Credentials
+                        </h6>
+                        <p class="card-text small mb-0">
+                            <strong>Username:</strong> demo_user<br>
+                            <strong>Password:</strong> demo123
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

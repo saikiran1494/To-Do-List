@@ -1,0 +1,158 @@
+@model List<FitnessApp.Models.DietPlan>
+@{
+    ViewData["Title"] = "Diet History";
+}
+
+<div class="container py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card dashboard-card">
+                <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">
+                        <i class="bi bi-journal-text"></i> Diet History (Last @ViewBag.Days Days)
+                    </h4>
+                    <div class="btn-group" role="group">
+                        <a href="@Url.Action("DietHistory", new { days = 7 })" 
+                           class="btn btn-outline-light @(ViewBag.Days == 7 ? "active" : "")">7 Days</a>
+                        <a href="@Url.Action("DietHistory", new { days = 30 })" 
+                           class="btn btn-outline-light @(ViewBag.Days == 30 ? "active" : "")">30 Days</a>
+                        <a href="@Url.Action("DietHistory", new { days = 90 })" 
+                           class="btn btn-outline-light @(ViewBag.Days == 90 ? "active" : "")">90 Days</a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    @if (Model.Any())
+                    {
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                @{
+                                    var totalMeals = Model.Count;
+                                    var consumedMeals = Model.Count(d => d.IsConsumed);
+                                    var totalCalories = Model.Sum(d => d.Calories);
+                                    var totalProtein = Model.Sum(d => d.ProteinG);
+                                    var avgDailyCalories = totalCalories / Math.Max(ViewBag.Days, 1);
+                                }
+                                
+                                <div class="row text-center mb-4">
+                                    <div class="col-md-3">
+                                        <div class="card bg-info text-white">
+                                            <div class="card-body">
+                                                <h3>@totalMeals</h3>
+                                                <p class="mb-0">Total Meals</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card bg-success text-white">
+                                            <div class="card-body">
+                                                <h3>@consumedMeals</h3>
+                                                <p class="mb-0">Consumed</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card bg-warning text-white">
+                                            <div class="card-body">
+                                                <h3>@totalCalories.ToString("N0")</h3>
+                                                <p class="mb-0">Total Calories</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card bg-primary text-white">
+                                            <div class="card-body">
+                                                <h3>@totalProtein.ToString("N0")g</h3>
+                                                <p class="mb-0">Total Protein</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Meal Type</th>
+                                        <th>Food Item</th>
+                                        <th>Quantity</th>
+                                        <th>Calories</th>
+                                        <th>Protein</th>
+                                        <th>Status</th>
+                                        <th>Notes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var meal in Model)
+                                    {
+                                        <tr class="@(meal.IsConsumed ? "table-success" : "")">
+                                            <td>@meal.MealDate.ToString("MMM dd, yyyy")</td>
+                                            <td>
+                                                <span class="badge bg-secondary">@meal.MealType</span>
+                                            </td>
+                                            <td><strong>@meal.FoodItem</strong></td>
+                                            <td>@meal.Quantity</td>
+                                            <td>
+                                                <i class="bi bi-fire"></i> @meal.Calories.ToString("N0")
+                                            </td>
+                                            <td>
+                                                <i class="bi bi-droplet"></i> @meal.ProteinG.ToString("N1")g
+                                            </td>
+                                            <td>
+                                                @if (meal.IsConsumed)
+                                                {
+                                                    <span class="badge bg-success">
+                                                        <i class="bi bi-check-circle"></i> Consumed
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-warning">
+                                                        <i class="bi bi-clock"></i> Planned
+                                                    </span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (!string.IsNullOrEmpty(meal.Notes))
+                                                {
+                                                    <small class="text-muted">@meal.Notes</small>
+                                                }
+                                                else
+                                                {
+                                                    <small class="text-muted">-</small>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-5">
+                            <i class="bi bi-journal-x display-1 text-muted"></i>
+                            <h4 class="text-muted mt-3">No Diet Records Found</h4>
+                            <p class="text-muted">Start tracking your meals to see them here!</p>
+                            <a href="@Url.Action("Dashboard")" class="btn btn-primary">
+                                <i class="bi bi-arrow-left"></i> Back to Dashboard
+                            </a>
+                        </div>
+                    }
+                </div>
+                <div class="card-footer">
+                    <div class="d-flex justify-content-between">
+                        <a href="@Url.Action("Dashboard")" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Back to Dashboard
+                        </a>
+                        <a href="@Url.Action("FitnessHistory")" class="btn btn-outline-primary">
+                            <i class="bi bi-activity"></i> View Fitness History
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
