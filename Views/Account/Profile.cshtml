@@ -65,12 +65,12 @@
                                 @if (Model.Height.HasValue && Model.Weight.HasValue && Model.Height > 0)
                                 {
                                     var bmi = Model.Weight / ((Model.Height / 100) * (Model.Height / 100));
-                                    var bmiCategory = bmi < 18.5 ? "Underweight" : 
-                                                    bmi < 25 ? "Normal" : 
-                                                    bmi < 30 ? "Overweight" : "Obese";
-                                    var bmiColor = bmi < 18.5 ? "warning" : 
-                                                 bmi < 25 ? "success" : 
-                                                 bmi < 30 ? "warning" : "danger";
+                                    var bmiCategory = bmi < 18.5m ? "Underweight" : 
+                                                    bmi < 25m ? "Normal" : 
+                                                    bmi < 30m ? "Overweight" : "Obese";
+                                    var bmiColor = bmi < 18.5m ? "warning" : 
+                                                 bmi < 25m ? "success" : 
+                                                 bmi < 30m ? "warning" : "danger";
                                     
                                     <tr>
                                         <td><strong>BMI:</strong></td>

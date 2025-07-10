@@ -125,9 +125,7 @@
                 <div class="card-body">
                     @if (Model.TodayDietPlans.Any())
                     {
-                        @{
-                            var groupedMeals = Model.TodayDietPlans.GroupBy(d => d.MealType).OrderBy(g => g.Key);
-                        }
+                        var groupedMeals = Model.TodayDietPlans.GroupBy(d => d.MealType).OrderBy(g => g.Key);
                         @foreach (var mealGroup in groupedMeals)
                         {
                             <div class="mb-3">

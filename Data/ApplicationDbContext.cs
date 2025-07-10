@@ -18,15 +18,22 @@ namespace FitnessApp.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // Configure User entity
+            // Configure User entity with performance optimizations
             modelBuilder.Entity<User>(entity =>
             {
                 entity.HasKey(e => e.UserId);
-                entity.HasIndex(e => e.Username).IsUnique();
-                entity.HasIndex(e => e.Email).IsUnique();
+                
+                // Performance: Optimized indexes for fast login
+                entity.HasIndex(e => e.Username).IsUnique().HasDatabaseName("IX_Users_Username");
+                entity.HasIndex(e => e.Email).IsUnique().HasDatabaseName("IX_Users_Email");
+                entity.HasIndex(e => new { e.Username, e.IsActive }).HasDatabaseName("IX_Users_Username_IsActive");
+                entity.HasIndex(e => e.IsActive).HasDatabaseName("IX_Users_IsActive");
                 
                 entity.Property(e => e.Height).HasPrecision(5, 2);
                 entity.Property(e => e.Weight).HasPrecision(5, 2);
+                
+                // Performance: Set column collation for case-insensitive search
+                entity.Property(e => e.Username).UseCollation("BINARY_CI");
             });
 
             // Configure FitnessPlan entity

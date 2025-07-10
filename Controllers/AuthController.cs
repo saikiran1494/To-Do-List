@@ -2,9 +2,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
+using System.Diagnostics;
+using BCrypt.Net;
 using FitnessApp.Data;
 using FitnessApp.Models;
 using FitnessApp.Models.ViewModels;
@@ -15,60 +16,144 @@ namespace FitnessApp.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly IConfiguration _configuration;
+        private readonly IMemoryCache _cache;
+        private readonly ILogger<AuthController> _logger;
+        
+        // Performance: Cache settings
+        private readonly MemoryCacheEntryOptions _userCacheOptions = new()
+        {
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10),
+            SlidingExpiration = TimeSpan.FromMinutes(5),
+            Priority = CacheItemPriority.High
+        };
 
-        public AuthController(ApplicationDbContext context, IConfiguration configuration)
+        public AuthController(ApplicationDbContext context, IConfiguration configuration, 
+            IMemoryCache cache, ILogger<AuthController> logger)
         {
             _context = context;
             _configuration = configuration;
+            _cache = cache;
+            _logger = logger;
         }
 
         [HttpGet]
         public IActionResult Login()
         {
-            return View();
+            // Redirect old login to new fast login
+            return RedirectToAction("FastLogin");
+        }
+
+        [HttpGet]
+        public IActionResult FastLogin()
+        {
+            var stopwatch = Stopwatch.StartNew();
+            
+            // Performance: Check if already authenticated
+            if (User.Identity?.IsAuthenticated == true)
+            {
+                return RedirectToAction("Dashboard", "Account");
+            }
+            
+            var model = new FastLoginViewModel();
+            
+            stopwatch.Stop();
+            ViewBag.RenderTime = stopwatch.ElapsedMilliseconds;
+            
+            return View(model);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> FastLogin(FastLoginViewModel model)
+        {
+            using var performanceTracker = new PerformanceStopwatch("FastLogin", model.Username);
+            var stopwatch = Stopwatch.StartNew();
+            
+            try
+            {
+                // Performance: Manual validation (faster than ModelState)
+                if (!model.IsValid(out var errors))
+                {
+                    ViewBag.Errors = errors;
+                    ViewBag.RenderTime = stopwatch.ElapsedMilliseconds;
+                    return View(model);
+                }
+
+                // Performance: Try cache first for user lookup
+                var cacheKey = $"user_{model.Username.ToLowerInvariant()}";
+                var user = await _cache.GetOrCreateAsync(cacheKey, async entry =>
+                {
+                    entry.SetOptions(_userCacheOptions);
+                    
+                    return await _context.Users
+                        .AsNoTracking()
+                        .Where(u => u.Username == model.Username && u.IsActive)
+                        .Select(u => new { u.UserId, u.Username, u.PasswordHash, u.Email, u.FirstName, u.LastName })
+                        .FirstOrDefaultAsync();
+                });
+
+                // Performance: Fast password verification
+                if (user == null || !BCrypt.Net.BCrypt.Verify(model.Password, user.PasswordHash))
+                {
+                    // Performance: Remove from cache if login fails
+                    _cache.Remove(cacheKey);
+                    
+                    ViewBag.Errors = new List<string> { "Invalid username or password." };
+                    ViewBag.RenderTime = stopwatch.ElapsedMilliseconds;
+                    return View(model);
+                }
+
+                // Performance: Fast claims creation
+                var claims = new[]
+                {
+                    new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
+                    new Claim(ClaimTypes.Name, user.Username),
+                    new Claim(ClaimTypes.Email, user.Email),
+                    new Claim("FullName", $"{user.FirstName} {user.LastName}")
+                };
+
+                var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+                var authProperties = new AuthenticationProperties
+                {
+                    IsPersistent = model.RememberMe,
+                    ExpiresUtc = model.RememberMe ? 
+                        DateTimeOffset.UtcNow.AddDays(30) : 
+                        DateTimeOffset.UtcNow.AddMinutes(30)
+                };
+
+                await HttpContext.SignInAsync(
+                    CookieAuthenticationDefaults.AuthenticationScheme,
+                    new ClaimsPrincipal(claimsIdentity), 
+                    authProperties);
+
+                stopwatch.Stop();
+                _logger.LogInformation("Fast login successful for user {Username} in {ElapsedMs}ms", 
+                    user.Username, stopwatch.ElapsedMilliseconds);
+
+                return RedirectToAction("Dashboard", "Account");
+            }
+            catch (Exception ex)
+            {
+                stopwatch.Stop();
+                _logger.LogError(ex, "Fast login error for user {Username} after {ElapsedMs}ms", 
+                    model.Username, stopwatch.ElapsedMilliseconds);
+                
+                ViewBag.Errors = new List<string> { "An error occurred during login. Please try again." };
+                ViewBag.RenderTime = stopwatch.ElapsedMilliseconds;
+                return View(model);
+            }
         }
 
         [HttpPost]
         public async Task<IActionResult> Login(LoginViewModel model)
         {
-            if (!ModelState.IsValid)
+            // Redirect old login POST to new fast login
+            var fastModel = new FastLoginViewModel
             {
-                return View(model);
-            }
-
-            var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.Username == model.Username && u.IsActive);
-
-            if (user == null || !VerifyPassword(model.Password, user.PasswordHash))
-            {
-                ModelState.AddModelError("", "Invalid username or password.");
-                return View(model);
-            }
-
-            // Generate OTP
-            var otpCode = GenerateOTP();
-            var otp = new OtpVerification
-            {
-                UserId = user.UserId,
-                OtpCode = otpCode,
-                GeneratedAt = DateTime.Now,
-                ExpiresAt = DateTime.Now.AddMinutes(int.Parse(_configuration["AppSettings:OtpExpiryMinutes"] ?? "5")),
-                Purpose = "LOGIN"
+                Username = model.Username,
+                Password = model.Password,
+                RememberMe = model.RememberMe
             };
-
-            _context.OtpVerifications.Add(otp);
-            await _context.SaveChangesAsync();
-
-            // In a real application, send OTP via SMS/Email
-            // For demo purposes, we'll show it in TempData
-            TempData["OtpCode"] = otpCode;
-            TempData["Message"] = $"OTP sent successfully! Demo OTP: {otpCode}";
-
-            // Store login data in session for OTP verification
-            HttpContext.Session.SetString("PendingUsername", model.Username);
-            HttpContext.Session.SetString("RememberMe", model.RememberMe.ToString());
-
-            return RedirectToAction("VerifyOtp");
+            return await FastLogin(fastModel);
         }
 
         [HttpGet]
@@ -156,31 +241,24 @@ namespace FitnessApp.Controllers
         [HttpPost]
         public async Task<IActionResult> Logout()
         {
-            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            TempData["Message"] = "You have been logged out successfully.";
-            return RedirectToAction("Login");
-        }
-
-        private string GenerateOTP()
-        {
-            var random = new Random();
-            return random.Next(100000, 999999).ToString();
-        }
-
-        private bool VerifyPassword(string password, string hashedPassword)
-        {
-            // Simple password verification - in production, use proper hashing like BCrypt
-            var hashedInput = ComputeHash(password);
-            return hashedInput == hashedPassword;
-        }
-
-        private string ComputeHash(string input)
-        {
-            using (var sha256 = SHA256.Create())
+            // Performance: Clear user cache on logout
+            if (User.Identity?.IsAuthenticated == true)
             {
-                var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(input));
-                return Convert.ToBase64String(hashedBytes);
+                var username = User.Identity.Name?.ToLowerInvariant();
+                if (!string.IsNullOrEmpty(username))
+                {
+                    _cache.Remove($"user_{username}");
+                }
             }
+            
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return RedirectToAction("FastLogin");
+        }
+
+        // Performance: Hash passwords with BCrypt for better security and performance
+        public static string HashPassword(string password)
+        {
+            return BCrypt.Net.BCrypt.HashPassword(password, BCrypt.Net.BCrypt.GenerateSalt(12));
         }
     }
 }
